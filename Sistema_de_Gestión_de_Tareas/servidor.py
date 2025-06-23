@@ -20,7 +20,6 @@ class Tarea(db.Model):
     completada = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
 
-# Decorador de autenticación básica
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -40,7 +39,7 @@ def registro():
         return jsonify({'mensaje': 'Faltan datos'}), 400
     if Usuario.query.filter_by(usuario=data['usuario']).first():
         return jsonify({'mensaje': 'Usuario ya existe'}), 400
-    hashed = generate_password_hash(data['contraseña'], method='sha256')
+    hashed = generate_password_hash(data['contraseña'], method='pbkdf2:sha256')
     nuevo = Usuario(usuario=data['usuario'], contraseña=hashed)
     db.session.add(nuevo)
     db.session.commit()
@@ -56,7 +55,7 @@ def login(current_user):
 def tareas_welcome(current_user):
     html = f"""
     <h1>Bienvenido, {current_user.usuario}</h1>
-    <p>Usa POST/GET/PUT/DELETE en /tareas y /tareas/list para gestionar tareas.</p>
+    <p>Usa POST, GET, PUT y DELETE en /tareas y /tareas/list para gestionar tareas.</p>
     """
     return render_template_string(html)
 
@@ -82,9 +81,9 @@ def actualizar_tarea(current_user, id):
     tarea = Tarea.query.filter_by(id=id, user_id=current_user.id).first()
     if not tarea:
         return jsonify({'mensaje': 'Tarea no encontrada'}), 404
-    data = request.get_json()
-    tarea.descripcion = data.get('descripcion', tarea.descripcion)
-    tarea.completada = data.get('completada', tarea.completada)
+    datos = request.get_json()
+    tarea.descripcion = datos.get('descripcion', tarea.descripcion)
+    tarea.completada = datos.get('completada', tarea.completada)
     db.session.commit()
     return jsonify({'mensaje': 'Tarea actualizada'})
 
@@ -99,5 +98,6 @@ def eliminar_tarea(current_user, id):
     return jsonify({'mensaje': 'Tarea eliminada'})
 
 if __name__ == '__main__':
-    db.create_all()
-    app.run(debug=True)
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True, use_reloader=False)
